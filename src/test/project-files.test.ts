@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collectFiles, MAX_FILE_BYTES, projectContext, type PickedFile } from "@/lib/project-files";
+import { collectFiles, MAX_FILE_BYTES, projectContext, summarizeProject, type PickedFile } from "@/lib/project-files";
 
 const f = (path: string, content = "x", size = content.length): PickedFile => ({ path, size, read: async () => content });
 
@@ -18,6 +18,19 @@ describe("project folder import", () => {
   it("skips binary and oversized files", async () => {
     const r = await collectFiles([f("app/logo.png"), f("app/big.ts", "x", MAX_FILE_BYTES + 1), f("app/ok.ts")]);
     expect(r.files.map((x) => x.path)).toEqual(["ok.ts"]);
+  });
+
+  it("builds a useful architecture summary", () => {
+    const summary = summarizeProject([
+      { path: "src/routes/index.tsx", content: "x" },
+      { path: "src/lib/chat.functions.ts", content: "x" },
+      { path: "src/components/chat/chat-view.tsx", content: "x" },
+      { path: "README.md", content: "x" },
+    ]);
+
+    expect(summary).toContain("Architecture summary:");
+    expect(summary).toContain("src/routes");
+    expect(summary).toContain("src/lib");
   });
 
   it("context lists files and stays within budget", () => {
