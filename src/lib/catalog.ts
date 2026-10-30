@@ -141,7 +141,7 @@ export const AGENTS: AgentDef[] = [
     name: "Red-Team Planner",
     tagline: "Plans authorised tests: scope, rules of engagement, reporting.",
     category: "Security",
-    prompt: "You help plan authorised penetration tests and red-team exercises: scoping, rules of engagement, methodology and reporting. You always confirm authorisation and never write working attacks against named third-party systems.",
+    prompt: "You help plan authorised penetration tests and red-team exercises: scoping, rules of engagement, methodology and reporting. You always confirm authorisation and never write working exploits without clear scope.",
   },
 ];
 
@@ -151,28 +151,34 @@ export interface SkillDef {
   id: string;
   name: string;
   description: string;
-  category: "Research" | "Build" | "Security";
+  category: "Research" | "Build" | "Security" | "Workspace";
   prompt: string;
 }
 
 export const SKILLS: SkillDef[] = [
-  { id: "web", name: "Web research", description: "Use live search results and cite sources.", category: "Research", prompt: "When search results are provided, base answers on them and cite the source titles." },
-  { id: "graphs", name: "Graph maker", description: "Draw bar, line, area and pie charts inside the chat.", category: "Research", prompt: "When data or comparisons appear, include a chart block (format described below)." },
-  { id: "tasks", name: "Task planner", description: "Turn goals into tickable checklists.", category: "Research", prompt: "When the user asks for a plan or steps, include a tasks block (format described below)." },
-  { id: "uiux", name: "UI/UX critique", description: "Heuristic reviews of screens and flows.", category: "Build", prompt: "For design questions, review with Nielsen heuristics, accessibility and visual hierarchy." },
-  { id: "securecode", name: "Secure code review", description: "Spot injection, auth and secrets issues.", category: "Security", prompt: "For code, check input validation, authentication, authorisation, secrets and dependency risks." },
-  { id: "vulnexplain", name: "Vulnerability explainer", description: "Explain CVEs and weakness classes with fixes.", category: "Security", prompt: "Explain vulnerabilities by cause, impact, detection and remediation. Do not supply ready-to-run exploits." },
-  { id: "logs", name: "Log & threat analysis", description: "Read logs and spot suspicious patterns.", category: "Security", prompt: "When given logs or alerts, identify anomalies, map to MITRE ATT&CK and propose next steps." },
-  { id: "reversing", name: "Reverse-engineering walkthroughs", description: "Step-by-step analysis of code and binaries.", category: "Security", prompt: "Walk through reverse-engineering tasks stepwise: tools, observations, hypotheses." },
-  { id: "ctf", name: "CTF helper", description: "Hints and methodology for capture-the-flag practice.", category: "Security", prompt: "For CTF challenges, give graduated hints first and full solutions only when asked." },
+  { id: "web", name: "Web research", description: "Use live search results and cite sources.", category: "Research", prompt: "When search results are provided, base answers on them and cite the sources." },
+  { id: "graphs", name: "Graph maker", description: "Draw bar, line, area and pie charts inside the chat.", category: "Research", prompt: "When data or comparisons appear, include a chart block with a clear title and values." },
+  { id: "tasks", name: "Task planner", description: "Turn goals into tickable checklists.", category: "Research", prompt: "When the user asks for a plan or steps, include a tasks block with actionable milestones." },
+  { id: "uiux", name: "UI/UX critique", description: "Heuristic reviews of screens and flows.", category: "Build", prompt: "For design questions, review with Nielsen heuristics, accessibility and conversion flow considerations." },
+  { id: "securecode", name: "Secure code review", description: "Spot injection, auth and secrets issues.", category: "Security", prompt: "For code, check input validation, authentication, authorisation, secrets exposure and unsafe patterns." },
+  { id: "vulnexplain", name: "Vulnerability explainer", description: "Explain CVEs and weakness classes with fixes.", category: "Security", prompt: "Explain vulnerabilities by cause, impact, detection and remediation." },
+  { id: "logs", name: "Log & threat analysis", description: "Read logs and spot suspicious patterns.", category: "Security", prompt: "When given logs or alerts, identify anomalies, map to ATT&CK, and outline next steps." },
+  { id: "reversing", name: "Reverse-engineering walkthroughs", description: "Step-by-step analysis of code and binaries.", category: "Security", prompt: "Walk through reverse-engineering tasks step by step with a careful, lawful and educational approach." },
+  { id: "ctf", name: "CTF helper", description: "Hints and methodology for capture-the-flag practice.", category: "Security", prompt: "For CTF challenges, give graduated hints first and full solutions only when appropriate." },
   { id: "hardening", name: "Hardening checklists", description: "Baselines for servers, cloud and apps.", category: "Security", prompt: "Offer hardening checklists mapped to CIS or similar baselines." },
+  { id: "memory", name: "Long-term memory", description: "Reuse project history, summaries and learned patterns.", category: "Workspace", prompt: "Use the project's memory, prior context and architecture notes to stay consistent across sessions." },
+  { id: "project-index", name: "Project indexer", description: "Summarise architecture, file layout and dependencies.", category: "Workspace", prompt: "When the user is working inside a codebase, identify core modules, architecture, and high-risk areas before suggesting edits." },
+  { id: "diff-review", name: "Diff reviewer", description: "Review code changes for regressions and quality.", category: "Workspace", prompt: "When code or diffs are presented, review regressions, risks, and likely follow-up fixes." },
+  { id: "docs", name: "Documentation writer", description: "Create concise docs, README updates, and architecture notes.", category: "Workspace", prompt: "When the user needs guidance, produce clear documentation and architecture explanations without overwording." },
 ];
 
-export const DEFAULT_SKILLS = SKILLS.map((s) => s.id);
+export const DEFAULT_SKILLS = [...new Set([...SKILLS.map((s) => s.id)])];
 
 export const SUGGESTIONS = [
   "Plot a bar chart of the OWASP Top 10 categories by typical severity",
   "Make me a task plan to harden a Linux web server",
   "Explain how a stack buffer overflow works at a high level",
   "Review my login flow design for UX and security issues",
+  "Summarise this project architecture and tell me the highest-risk files to edit next",
+  "Review the recent code diff and flag any risks before I ship",
 ];
