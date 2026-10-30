@@ -28,6 +28,15 @@ export interface ProjectFile {
   content: string;
 }
 
+export interface ProjectMemory {
+  id: string;
+  title: string;
+  summary: string;
+  createdAt: number;
+  updatedAt: number;
+  tags: string[];
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -37,6 +46,9 @@ export interface Project {
   /** Files read from a folder the user picked; text only, size-capped. */
   files: ProjectFile[];
   skipped: number;
+  contextSummary?: string;
+  contextUpdatedAt?: number;
+  memories?: ProjectMemory[];
 }
 
 export interface Chat {
@@ -79,7 +91,6 @@ const defaultSettings: Settings = {
   thinking: true,
 };
 
-/** Old stored ids keep working: map pre-rename Mythos presets to their Bloody equivalents. */
 const LEGACY_MODEL: Record<string, string> = {
   mythos: "bloody",
   "mythos-lite": "bloody-lite",
@@ -101,7 +112,14 @@ function load() {
       settings.modelId = LEGACY_MODEL[settings.modelId] ?? settings.modelId;
       state = {
         chats: Array.isArray(parsed.chats) ? parsed.chats : [],
-        projects: Array.isArray(parsed.projects) ? parsed.projects : [],
+        projects: Array.isArray(parsed.projects)
+          ? parsed.projects.map((project) => ({
+              ...project,
+              contextSummary: project.contextSummary ?? "",
+              contextUpdatedAt: project.contextUpdatedAt ?? 0,
+              memories: project.memories ?? [],
+            }))
+          : [],
         settings,
         pending: {},
         ready: true,
@@ -157,7 +175,6 @@ export function useAppState() {
 export const newId = () => crypto.randomUUID();
 
 export const getSettings = () => state.settings;
-
 export const getChat = (id: string) => state.chats.find((c) => c.id === id);
 
 function mapChat(id: string, fn: (c: Chat) => Chat) {
@@ -223,6 +240,20 @@ export function setChatModel(chatId: string, modelId: string) {
 
 export const getProject = (id: string | null | undefined) => (id ? state.projects.find((p) => p.id === id) : undefined);
 
+export function addProjectMemory(projectId: string, memory: Omit<ProjectMemory, "id" | "createdAt" | "updatedAt">) {
+  const project = getProject(projectId);
+  if (!project) return;
+  const entry: ProjectMemory = {
+    id: newId(),
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    ...memory,
+  };
+
+  const memories = [entry, ...(project.memories ?? [])].slice(0, 12);
+  updateProject(projectId, { memories, contextSummary: project.contextSummary ?? "" });
+}
+
 export function createProject(p: { name: string; description?: string; files?: ProjectFile[]; skipped?: number }): string {
   const id = newId();
   const now = Date.now();
@@ -234,13 +265,18 @@ export function createProject(p: { name: string; description?: string; files?: P
     updatedAt: now,
     files: p.files ?? [],
     skipped: p.skipped ?? 0,
+    contextSummary: "",
+    contextUpdatedAt: 0,
+    memories: [],
   };
   set({ projects: [project, ...state.projects] });
   return id;
 }
 
 export function updateProject(id: string, patch: Partial<Omit<Project, "id" | "createdAt">>) {
-  set({ projects: state.projects.map((p) => (p.id === id ? { ...p, ...patch, updatedAt: Date.now() } : p)) });
+  set({
+    projects: state.projects.map((p) => (p.id === id ? { ...p, ...patch, updatedAt: Date.now() } : p)),
+  });
 }
 
 export function deleteProject(id: string) {
