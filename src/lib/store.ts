@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { DEFAULT_SKILLS } from "./catalog";
+import { refreshProjectSummary } from "./project-files";
 
 export interface Source {
   title: string;
@@ -254,19 +255,30 @@ export function addProjectMemory(projectId: string, memory: Omit<ProjectMemory, 
   updateProject(projectId, { memories, contextSummary: project.contextSummary ?? "" });
 }
 
+export function refreshProjectContext(projectId: string) {
+  const project = getProject(projectId);
+  if (!project) return;
+  const summary = refreshProjectSummary(project);
+  updateProject(projectId, {
+    contextSummary: summary,
+    contextUpdatedAt: Date.now(),
+  });
+}
+
 export function createProject(p: { name: string; description?: string; files?: ProjectFile[]; skipped?: number }): string {
   const id = newId();
   const now = Date.now();
+  const files = p.files ?? [];
   const project: Project = {
     id,
     name: p.name.trim() || "Untitled project",
     description: p.description?.trim() ?? "",
     createdAt: now,
     updatedAt: now,
-    files: p.files ?? [],
+    files,
     skipped: p.skipped ?? 0,
-    contextSummary: "",
-    contextUpdatedAt: 0,
+    contextSummary: refreshProjectSummary({ name: p.name.trim() || "Untitled project", description: p.description?.trim() ?? "", files }),
+    contextUpdatedAt: now,
     memories: [],
   };
   set({ projects: [project, ...state.projects] });
@@ -275,7 +287,15 @@ export function createProject(p: { name: string; description?: string; files?: P
 
 export function updateProject(id: string, patch: Partial<Omit<Project, "id" | "createdAt">>) {
   set({
-    projects: state.projects.map((p) => (p.id === id ? { ...p, ...patch, updatedAt: Date.now() } : p)),
+    projects: state.projects.map((p) => {
+      if (p.id !== id) return p;
+      const next = { ...p, ...patch, updatedAt: Date.now() };
+      if (patch.files) {
+        next.contextSummary = refreshProjectSummary({ name: p.name, description: p.description, files: patch.files });
+        next.contextUpdatedAt = Date.now();
+      }
+      return next;
+    }),
   });
 }
 

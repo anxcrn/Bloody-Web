@@ -81,10 +81,65 @@ export function fromFileList(list: FileList | File[]): PickedFile[] {
   }));
 }
 
+export function summarizeProject(files: ProjectFile[], maxFiles = 12): string {
+  if (!files.length) {
+    return "Architecture summary:\n- Project is empty or contains no readable text files yet.";
+  }
+
+  const byDir = new Map<string, number>();
+  const byExt = new Map<string, number>();
+  const keyFiles = new Set<string>();
+
+  for (const file of files) {
+    const dir = file.path.split("/").slice(0, -1).join("/") || ".";
+    const ext = file.path.split(".").pop()?.toLowerCase() ?? "txt";
+    byDir.set(dir, (byDir.get(dir) ?? 0) + 1);
+    byExt.set(ext, (byExt.get(ext) ?? 0) + 1);
+
+    if (
+      /(^(|.*\/))(README|package\.json|vite\.config\.ts|tsconfig\.json|src\/routes|src\/lib|src\/components|src\/app|src\/hooks)/.test(
+        file.path,
+      )
+    ) {
+      keyFiles.add(file.path);
+    }
+  }
+
+  const sortedDirs = [...byDir.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const sortedExts = [...byExt.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const topFiles = [...keyFiles].slice(0, maxFiles);
+
+  const summaryLines = [
+    "Architecture summary:",
+    ...sortedDirs.map(([dir, count]) => `- ${dir === "." ? "root" : dir}: ${count} readable files`),
+    ...sortedExts.map(([ext, count]) => `- ${ext.toUpperCase()} files: ${count}`),
+  ];
+
+  if (topFiles.length) {
+    summaryLines.push("", "Key files:");
+    for (const file of topFiles) summaryLines.push(`- ${file}`);
+  }
+
+  return summaryLines.join("\n");
+}
+
+export function refreshProjectSummary(project: { name: string; description: string; files: ProjectFile[] }): string {
+  const summary = summarizeProject(project.files);
+  return `${summary}\n\nProject: ${project.name}${project.description ? `\nGoal: ${project.description}` : ""}`;
+}
+
 /** Text handed to the model so it can build inside the project. */
-export function projectContext(p: { name: string; description: string; files: ProjectFile[] }, budget = 100_000): string {
+export function projectContext(
+  p: { name: string; description: string; files: ProjectFile[]; contextSummary?: string },
+  budget = 120_000,
+): string {
+  const summary = p.contextSummary?.trim()
+    ? `Project summary:\n${p.contextSummary}\n\n`
+    : `Project summary:\nArchitecture is not yet summarized.\n\n`;
+
   const tree = p.files.map((f) => `- ${f.path}`).join("\n");
-  let out = `Project: ${p.name}\n${p.description ? `Goal: ${p.description}\n` : ""}Files (${p.files.length}):\n${tree || "(empty — start from scratch)"}\n`;
+  let out = `${summary}Project: ${p.name}\n${p.description ? `Goal: ${p.description}\n` : ""}Files (${p.files.length}):\n${tree || "(empty — start from scratch)"}\n`;
+
   for (const f of p.files) {
     const block = `\n--- ${f.path} ---\n${f.content}\n`;
     if (out.length + block.length > budget) {
@@ -93,5 +148,10 @@ export function projectContext(p: { name: string; description: string; files: Pr
     }
     out += block;
   }
+
   return out;
+}
+
+export function ensureProjectContextSummary(project: { name: string; description: string; files: ProjectFile[]; contextSummary?: string }) {
+  return project.contextSummary?.trim() ? project.contextSummary : refreshProjectSummary(project);
 }

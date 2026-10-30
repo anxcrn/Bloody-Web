@@ -10,13 +10,13 @@ import {
   getSettings,
   getProject,
 } from "./store";
-import { projectContext } from "./project-files";
+import { projectContext, summarizeProject } from "./project-files";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Web search runs only when the user's message asks for it — no links until they ask. */
 const WEB_INTENT =
-  /\b(search|google|look\s?up|lookup|find\s+(?:out|online)|latest|newest|news|today|current(?:ly)?|recent(?:ly)?|online|web|internet|sources?|citations?|references?|browse|trending|price|weather|stock|score|released?|up\s?to\s?date|202[4-6])\b/i;
+  /\b(search|google|look\s?up|lookup|find\s+(?:out|online)|latest|newest|news|today|current(?:ly)?|recent(?:ly)?|online|web|internet|sources?|citations?|references?|browse|trending|price|weather|stock|market|crypto|github|repo|documentation|compare|vs)\b/i;
 
 export async function runReply(chatId: string) {
   const chat = getChat(chatId);
@@ -33,6 +33,13 @@ export async function runReply(chatId: string) {
   const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
 
   try {
+    const projectSnapshot = project
+      ? {
+          ...project,
+          contextSummary: project.contextSummary?.trim() || summarizeProject(project.files),
+        }
+      : undefined;
+
     const res = await sendChat({
       data: {
         messages: history,
@@ -41,7 +48,7 @@ export async function runReply(chatId: string) {
         skillIds: settings.skills,
         web: WEB_INTENT.test(lastUser),
         thinking: settings.thinking !== false,
-        ...(project ? { projectContext: projectContext(project) } : {}),
+        ...(projectSnapshot ? { projectContext: projectContext(projectSnapshot) } : {}),
       },
     });
 
@@ -59,7 +66,6 @@ export async function runReply(chatId: string) {
     const id = newId();
     addMessage(chatId, { id, role: "assistant", content: "", ts: Date.now() });
 
-    // Stream the reasoning first (the "Thinking" panel), then the answer.
     if (res.reasoning) {
       const rStep = Math.max(24, Math.ceil(res.reasoning.length / 30));
       for (let i = rStep; i < res.reasoning.length + rStep; i += rStep) {
